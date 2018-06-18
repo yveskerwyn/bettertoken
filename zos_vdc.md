@@ -21,6 +21,7 @@ Steps:
 - [Boot a Zero-OS node on a physical node](#boot-zos2)
 - [Install the Zero-Robot Client](#zrobot-client)
 - [Create Zero-Robot clients](#zrobot-clients)
+- [Stream the Zero-Robot output of the OVC node](#stream)
 - [Create a ZeroTier client service on both nodes](#zt-client-services)
 - [Create a virtual datacenter](#zos-vdc)
 - [Create a virtual disk](#create-vdisk)
