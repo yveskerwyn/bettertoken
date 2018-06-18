@@ -78,7 +78,6 @@ mkdir -p /Volumes/ZOS/EFI/BOOT/
 wget -O /Volumes/ZOS/EFI/BOOT/BOOTX64.EFI https://bootstrap.gig.tech/uefi/development/9f77fc393e7fd8b4/organization=zos-training-org%20development
 ```
 
-
 Unmount:
 ```bash
 diskutil umount /Volumes/ZOS

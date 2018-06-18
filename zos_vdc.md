@@ -21,7 +21,8 @@ Steps:
 - [Boot a Zero-OS node on a physical node](#boot-zos2)
 - [Install the Zero-Robot Client](#zrobot-client)
 - [Create Zero-Robot clients](#zrobot-clients)
-- [Stream the Zero-Robot output of the OVC node](#stream)
+- [Stream the Zero-Robot output of the OVC node](#stream1)
+- [Stream the Zero-Robot output of the second/physical node (optionally)](#stream2)
 - [Create a ZeroTier client service on both nodes](#zt-client-services)
 - [Create a virtual datacenter](#zos-vdc)
 - [Create a virtual disk](#create-vdisk)
@@ -85,13 +86,13 @@ zt_client.networks_list()
 Set the name of the ZeroTier network you want to use to connect to the public gateway:
 Create the network:
 ```python
-zt_private_network_name = 'my_private_network'
+zt_private_network_name = 'private_network'
 ```
 
 If this ZeroTier network was already created before, get it using the network id:
 ```python
-zt_private_network_id = '9f77fc393eb910bc'
-zt_private_network = zt_client.network_get(network_id=zt_admin_network_id)
+zt_private_network_id = 'e4da7455b25d1128'
+zt_private_network = zt_client.network_get(network_id=zt_private_network_id)
 ```
 
 If not created yet the network, create it:
@@ -151,15 +152,14 @@ Authorize the join request:
 ```python
 zt_machine_addr = j.tools.prefab.local.network.zerotier.get_zerotier_machine_address()
 
-zt_member = zt_admin_network.member_get(address=zt_machine_addr)
-zt_member.authorize()
+zt_admin_network_member0 = zt_admin_network.member_get(address=zt_machine_addr)
+zt_admin_network_member0.authorize()
 ```
 
 
 <a id="join-public-zt-network"></a>
 
 ## Join the public ZeroTier network
-
 
 Join:
 ```python
@@ -242,18 +242,19 @@ ipxe_url = 'ipxe: https://bootstrap.gig.tech/ipxe/{}/{}/'.format(zos_branch, zt_
 zos_vm = cloud_space.machine_create(name=vm_name, memsize=8, disksize=10, datadisks=[50], image='IPXE Boot', authorize_ssh=False, userdata=ipxe_url)
 ```
 
-Alternatively you can also boot a machine on Packet.net; using this option will implicitly create and return a Zero-OS client.
+> Alternatively you can also boot a machine on Packet.net; using this option will implicitly create and return a Zero-OS client.
 
 
 <a id="authorize-join"></a>
 
-## Authorize ZeroTier join request from your admin node
+## Authorize ZeroTier join request from your OVC node
 
 In order to authorize the join request from the Zero-OS node:
 ```python
-zos_member1 = zt_admin_network.member_get(public_ip=cloudspace_public_ip_address)
-zos_member1.authorize()
+zt_admin_network_member1 = zt_admin_network.member_get(public_ip=cloudspace_public_ip_address)
+zt_admin_network_member1.authorize()
 ```
+
 
 <a id="boot-zos2"></a>
 
@@ -276,6 +277,7 @@ mount
 
 Copy the EFI file:
 ```bash
+rm -rf /Volumes/ZOS/EFI/BOOT/
 mkdir -p /Volumes/ZOS/EFI/BOOT/
 wget -O /Volumes/ZOS/EFI/BOOT/BOOTX64.EFI https://bootstrap.gig.tech/uefi/development/9f77fc393e7fd8b4/organization=zos-training-org%20development
 ```
@@ -303,7 +305,7 @@ jwt_zos = iyo_client.jwt_get(scope=memberof_scope, refreshable=True)
 Create Zero-Robot config instances, first for the node robot of the Zero-OS hosted on OpenvCloud:
 ```python
 robot1_name = 'robot1'
-robot1_url = 'http://{}:6600'.format(zos_member1.private_ip)
+robot1_url = 'http://{}:6600'.format(zt_admin_network_member1.private_ip)
 robot1_cfg = dict(url=robot1_url, jwt_=jwt_zos)
 j.clients.zrobot.new(instance=robot1_name, data=robot1_cfg)
 ```
@@ -311,7 +313,11 @@ j.clients.zrobot.new(instance=robot1_name, data=robot1_cfg)
 Then for the physical Zero-OS node:
 ```python
 robot2_name = 'robot2'
-robot2_url = 'http://10.147.19.140:6600'
+zt_admin_network.members_list()
+zt_admin_network_member2_name = '...'
+zt_admin_network_member2 = zt_admin_network.member_get(name=zt_admin_network_member2_name)
+node2_address = zt_admin_network_member2.private_ip
+robot2_url = 'http://{}:6600'.format(node2_address)
 robot2_cfg = dict(url=robot2_url, jwt_=jwt_zos)
 j.clients.zrobot.new(instance=robot2_name, data=robot2_cfg)
 ```
@@ -336,7 +342,7 @@ robot3_client = j.clients.zrobot.get(instance=robot3_name)
 robot3 = j.clients.zrobot.robots[robot3_name]
 ```
 
-<a id='stream'></a>
+<a id='stream1'></a>
 
 ## Stream the Zero-Robot output of the OVC node
 
@@ -344,51 +350,106 @@ First we need to create a Zero-OS configuration instance for the newly booted Op
 
 Name of the Zero-OS configuration instance:
 ```python
-zos_instance_name = vm_name
+zos_instance_name1 = 'node1'
 ```
 
 Optionally, you might want to delete the existing instance with the same name:
 ```python
-j.clients.zos.delete(instance=zos_instance_name)
+j.clients.zos.delete(instance=zos_instance_name1)
 ```
 
 If you already have an updated config instance, get the client:
 ```python
-zos_client = j.clients.zos.get(instance=zos_instance_name, interactive=False)
+zos_client1 = j.clients.zos.get(instance=zos_instance_name1, interactive=False)
 ```
 
 If not, create a new config instance and client:
 ```python
-node_address = zos_member1.private_ip
-zos_cfg = {"host": node_address, "port": 6379, "password_": jwt}
-zos_client = j.clients.zos.get(instance=zos_instance_name, data=zos_cfg)
+node_address1 = zt_admin_network_member1.private_ip
+zos_cfg1 = {"host": node_address1, "port": 6379, "password_": jwt_zos}
+zos_client1 = j.clients.zos.get(instance=zos_instance_name1, data=zos_cfg1)
 ```
 
 Get the SAL interface and list the containers:
 ```python
-zos_sal = j.clients.zos.sal.get_node(instance=zos_instance_name)
-zos_sal.containers.list()
+zos_sal1 = j.clients.zos.sal.get_node(instance=zos_instance_name1)
+zos_sal1.containers.list()
 ```
 
 To check the flist version that was used:
 ```python
-zos_sal.client.info.version()
+zos_sal1.client.info.version()
 ```
 
 Stream the Zero-Robot output - in another JumpScale interactive shell:
 ```python
 j.clients.zos.list()
-zos_instance_name = '...'
-zos_sal = j.clients.zos.sal.get_node(instance=zos_instance_name)
-zrobot_container = zos_sal.containers.get(name='zrobot')
+zos_instance_name1 = '...'
+zos_sal1 = j.clients.zos.sal.get_node(instance=zos_instance_name1)
+zrobot_container1 = zos_sal1.containers.get(name='zrobot')
 
-subscription = zrobot_container.client.subscribe(job='zrobot')
-subscription.stream()
+subscription1 = zrobot_container1.client.subscribe(job='zrobot')
+subscription1.stream()
 ```
 
 Check the version of the Zero-Robot on the node:
 ```python
-zos_sal.containers.get('zrobot').info
+zos_sal1.containers.get('zrobot').info
+```
+
+
+<a id='stream2'></a>
+
+## Stream the Zero-Robot output of the second/physical node (optionally)
+
+First we need to create a Zero-OS configuration instance for the second node.
+
+Name of the Zero-OS configuration instance:
+```python
+zos_instance_name2 = 'node2'
+```
+
+Optionally, you might want to delete the existing instance with the same name:
+```python
+j.clients.zos.delete(instance=zos_instance_name2)
+```
+
+If you already have an updated config instance, get the client:
+```python
+zos_client2 = j.clients.zos.get(instance=zos_instance_name2, interactive=False)
+```
+
+If not, create a new config instance and client:
+```python
+zos_cfg2 = {"host": node2_address, "port": 6379, "password_": jwt_zos}
+zos_client2 = j.clients.zos.get(instance=zos_instance_name2, data=zos_cfg2)
+```
+
+Get the SAL interface and list the containers:
+```python
+zos_sal2 = j.clients.zos.sal.get_node(instance=zos_instance_name2)
+zos_sal2.containers.list()
+```
+
+To check the flist version that was used:
+```python
+zos_sal2.client.info.version()
+```
+
+Stream the Zero-Robot output - in another JumpScale interactive shell:
+```python
+j.clients.zos.list()
+zos_instance_name2 = '...'
+zos_sal2 = j.clients.zos.sal2.get_node(instance=zos_instance_name2)
+zrobot_container2 = zos_sal2.containers.get(name='zrobot')
+
+subscription2 = zrobot_container2.client.subscribe(job='zrobot')
+subscription2.stream()
+```
+
+Check the version of the Zero-Robot on the node:
+```python
+zos_sal2.containers.get('zrobot').info
 ```
 
 <a id="zt-client-services"></a>
