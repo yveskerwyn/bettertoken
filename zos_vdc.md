@@ -23,6 +23,7 @@ Steps:
 - [Create Zero-Robot clients](#zrobot-clients)
 - [Stream the Zero-Robot output of the OVC node](#stream1)
 - [Stream the Zero-Robot output of the second/physical node (optionally)](#stream2)
+- [Reset the node robots (optionally)](#reset-robots)
 - [Create a ZeroTier client service on both nodes](#zt-client-services)
 - [Create a virtual datacenter](#zos-vdc)
 - [Create a virtual disk](#create-vdisk)
@@ -91,7 +92,7 @@ zt_private_network_name = 'private_network'
 
 If this ZeroTier network was already created before, get it using the network id:
 ```python
-zt_private_network_id = 'e4da7455b25d1128'
+zt_private_network_id = '8850338390902df3'
 zt_private_network = zt_client.network_get(network_id=zt_private_network_id)
 ```
 
@@ -249,7 +250,8 @@ zos_vm = cloud_space.machine_create(name=vm_name, memsize=8, disksize=10, datadi
 
 ## Authorize ZeroTier join request from your OVC node
 
-In order to authorize the join request from the Zero-OS node:
+
+In order to authorize the join request from the Zero-OS node - wait until you see the node appear in the ZeroTier network:
 ```python
 zt_admin_network_member1 = zt_admin_network.member_get(public_ip=cloudspace_public_ip_address)
 zt_admin_network_member1.authorize()
@@ -302,16 +304,20 @@ memberof_scope = 'user:memberof:{}'.format(iyo_organization)
 jwt_zos = iyo_client.jwt_get(scope=memberof_scope, refreshable=True)
 ```
 
-Create Zero-Robot config instances, first for the node robot of the Zero-OS hosted on OpenvCloud:
+Create Zero-Robot config instances and clients, first for the node robot of the Zero-OS hosted on OpenvCloud:
 ```python
 robot1_name = 'robot1'
 robot1_url = 'http://{}:6600'.format(zt_admin_network_member1.private_ip)
 robot1_cfg = dict(url=robot1_url, jwt_=jwt_zos)
-j.clients.zrobot.new(instance=robot1_name, data=robot1_cfg)
+#j.clients.zrobot.delete(instance=robot1_name)
+robot1_client = j.clients.zrobot.new(instance=robot1_name, data=robot1_cfg)
 ```
 
 Then for the physical Zero-OS node:
 ```python
+#j.clients.zos.list()
+#zos_instance_name2 = 'node2'
+#j.clients.zos.delete(instance=zos_instance_name2)
 robot2_name = 'robot2'
 zt_admin_network.members_list()
 zt_admin_network_member2_name = '...'
@@ -319,7 +325,8 @@ zt_admin_network_member2 = zt_admin_network.member_get(name=zt_admin_network_mem
 node2_address = zt_admin_network_member2.private_ip
 robot2_url = 'http://{}:6600'.format(node2_address)
 robot2_cfg = dict(url=robot2_url, jwt_=jwt_zos)
-j.clients.zrobot.new(instance=robot2_name, data=robot2_cfg)
+#j.clients.zrobot.delete(instance=robot2_name)
+robot2_client = j.clients.zrobot.new(instance=robot2_name, data=robot2_cfg)
 ```
 
 And finally, for the physical Zero-OS node that will host the public gateway, connected to the public ZeroTier GW network:
@@ -327,18 +334,15 @@ And finally, for the physical Zero-OS node that will host the public gateway, co
 robot3_name = 'public_gw_robot'
 robot3_url = 'http://gw1.robot.threefoldtoken.com:6600'
 robot3_cfg = dict(url=robot3_url)
-j.clients.zrobot.new(instance=robot3_name, data=robot3_cfg)
+robot3_client = j.clients.zrobot.new(instance=robot3_name, data=robot3_cfg)
 ```
 
 Create Zero-Robot clients:
 ```python
-robot1_client = j.clients.zrobot.get(instance=robot1_name)
 robot1 = j.clients.zrobot.robots[robot1_name]
 
-robot2_client = j.clients.zrobot.get(instance=robot2_name)
 robot2 = j.clients.zrobot.robots[robot2_name]
 
-robot3_client = j.clients.zrobot.get(instance=robot3_name)
 robot3 = j.clients.zrobot.robots[robot3_name]
 ```
 
@@ -384,17 +388,12 @@ zos_sal1.client.info.version()
 Stream the Zero-Robot output - in another JumpScale interactive shell:
 ```python
 j.clients.zos.list()
-zos_instance_name1 = '...'
+zos_instance_name1 = 'node1'
 zos_sal1 = j.clients.zos.sal.get_node(instance=zos_instance_name1)
 zrobot_container1 = zos_sal1.containers.get(name='zrobot')
 
 subscription1 = zrobot_container1.client.subscribe(job='zrobot')
 subscription1.stream()
-```
-
-Check the version of the Zero-Robot on the node:
-```python
-zos_sal1.containers.get('zrobot').info
 ```
 
 
@@ -439,7 +438,7 @@ zos_sal2.client.info.version()
 Stream the Zero-Robot output - in another JumpScale interactive shell:
 ```python
 j.clients.zos.list()
-zos_instance_name2 = '...'
+zos_instance_name2 = 'node2'
 zos_sal2 = j.clients.zos.sal2.get_node(instance=zos_instance_name2)
 zrobot_container2 = zos_sal2.containers.get(name='zrobot')
 
@@ -447,10 +446,29 @@ subscription2 = zrobot_container2.client.subscribe(job='zrobot')
 subscription2.stream()
 ```
 
-Check the version of the Zero-Robot on the node:
+
+<a id="reset-robots"></a>
+
+## Reset the node robots (optionally)
+
+Optionally, delete all node robot data, basically resetting the node, removing all state - in case you don't have the authorization keys (secrets):
 ```python
-zos_sal2.containers.get('zrobot').info
+zrobot1_container = zos_sal1.containers.get(name='zrobot')
+zrobot1_container.client.bash(script='rm -rf /opt/var/data/zrobot/zrobot_data/*').get()
+zrobot1_container.stop()
+zrobot1_container.start()
 ```
+
+Do the same for the second node:
+```python
+zrobot2_container = zos_sal2.containers.get(name='zrobot')
+zrobot2_container.client.bash(script='rm -rf /opt/var/data/zrobot/zrobot_data/*').get()
+zrobot2_container.stop()
+zrobot2_container.start()
+```
+
+You will now reactivate the output streams from the node robots.
+
 
 <a id="zt-client-services"></a>
 
@@ -461,10 +479,21 @@ Get the API token of your ZeroTier account:
 zt_token =  zt_client.config.data['token_']
 ```
 
+Set the name of the ZeroTier client service:
+```python
+zt_client_service_name = 'my_zt_client_service'
+```
+
+Optionally delete the existing ZeroTier client service - in case you have the authorization keys (secrets):
+```python
+robot1.services.get(name=zt_client_service_name).delete()
+```
+
+Do the same for
+
 Create a ZeroTier client service on the first node:
 ```python
 zt_data = {'token': zt_token}
-zt_client_service_name = 'my_zt_client_service'
 robot1.services.find_or_create(template_uid='zerotier_client', service_name=zt_client_service_name, data=zt_data)
 ```
 
@@ -480,6 +509,7 @@ robot2.services.find_or_create(template_uid='zerotier_client', service_name=zt_c
 Create a service for the gateway:
 ```python
 priv_gw_service_name = 'gw1'
+robot1.services.get(name=priv_gw_service_name).delete()
 priv_gw_service = robot1.services.create(template_uid='gateway', service_name=priv_gw_service_name, data={
     'hostname': priv_gw_service_name,
     'domain': 'lan',
@@ -504,7 +534,15 @@ This will join the gateway into your private Zero-Tier network.
 
 <a id="create-vdisk"></a>
 
-## Create a virtual disk
+## Create a virtual disk on the second node
+
+Optionally, first delete all node robot data on the second node, basically resetting the node, removing all state - in case you don't have the authorization keys (secrets):
+```python
+zrobot2_container = zos_sal2.containers.get(name='zrobot')
+zrobot2_containerclient.bash(script='rm -rf /opt/var/data/zrobot/zrobot_data/*').get()
+zrobot2_container.stop()
+zrobot2_container.start()
+```
 
 ```python
 vdisk_service_name = 'vdisk1'
@@ -578,7 +616,6 @@ mkdir -p /mnt/www
 cd /mnt/www
 echo "Hello world" > index.html
 python3 -m http.server
-Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
 ```
 
 <a id="pf-webap"></a>
