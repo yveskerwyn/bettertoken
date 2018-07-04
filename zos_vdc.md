@@ -157,6 +157,11 @@ zt_admin_network_member0 = zt_admin_network.member_get(address=zt_machine_addr)
 zt_admin_network_member0.authorize()
 ```
 
+The last step can also be accomplished by passing the ZeroTier client as an argument to the join request:
+```python
+j.tools.prefab.local.network.zerotier.network_join(network_id=zt_admin_network_id,)
+```
+
 
 <a id="join-public-zt-network"></a>
 
@@ -488,8 +493,6 @@ Optionally delete the existing ZeroTier client service - in case you have the au
 ```python
 robot1.services.get(name=zt_client_service_name).delete()
 ```
-
-Do the same for
 
 Create a ZeroTier client service on the first node:
 ```python
