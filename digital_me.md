@@ -1,4 +1,4 @@
-# Digital Me
+# Getting started with Digital Me
 
 - [Create the ZeroTier private network](#create-zt-priv-network)
 - [Join the private ZeroTier network](#join-private-network)
