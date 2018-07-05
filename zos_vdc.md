@@ -444,8 +444,8 @@ Stream the Zero-Robot output - in another JumpScale interactive shell:
 ```python
 j.clients.zos.list()
 zos_instance_name2 = 'node2'
-zos_sal2 = j.clients.zos.sal2.get_node(instance=zos_instance_name2)
-zrobot_container2 = zos_sal2.containers.get(name='zrobot')
+zos_sal2 = j.clients.zos.sal.get_node(instance=zos_instance_name2)
+zrobot_container2 = zos_sal.containers.get(name='zrobot')
 
 subscription2 = zrobot_container2.client.subscribe(job='zrobot')
 subscription2.stream()
@@ -472,7 +472,7 @@ zrobot2_container.stop()
 zrobot2_container.start()
 ```
 
-You will now reactivate the output streams from the node robots.
+You will now have to reactivate the output streams from the node robots.
 
 
 <a id="zt-client-services"></a>
