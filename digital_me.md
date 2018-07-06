@@ -21,7 +21,7 @@
 - [Create the VM machine](#create-vm)
 - [Create a virtual Web app](#create-webapp)
 - [Create a public gateway](#public-gw)
-
+- [Using a blueprint](#blueprint)
 
 ## Create the ZeroTier private network
 
@@ -520,9 +520,9 @@ https://github.com/Jumpscale/digital_me/tree/master/templates/gateway
 
 ```python
 DM_GW_UID = 'github.com/jumpscale/digital_me/gateway/0.0.1'
-
+gw_hostname = 'mygw'
 gw_data = {
-    'hostname': 'mygw',
+    'hostname': gw_hostname,
     'domain': 'lan',
     'nodeId': node_id,
     'networks': [{
@@ -539,6 +539,8 @@ dm_gw_service = dm_robot.services.find_or_create(template_uid=DM_GW_UID, service
 dm_gw_service.schedule_action('install').wait(die=True)
 ```
 
+See [issue #29](https://github.com/Jumpscale/digital_me/issues/29) regarding this last step.
+
 Add proxy:
 ```python
 proxy_name = 'myproxy'
@@ -551,3 +553,11 @@ Remove it again:
 dm_gw_service.schedule_action(action='remove_http_proxy', args={'proxy': proxy_cfg}).wait(die=True) 
 ```
 
+See [issue #30](https://github.com/Jumpscale/digital_me/issues/30) about this last step.
+
+
+<a id='blueprint'></a>
+
+## Using a blueprint
+
+@TODO
