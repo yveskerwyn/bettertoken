@@ -1,5 +1,12 @@
 # Getting started with Digital Me
 
+## Setup
+
+![](https://docs.google.com/drawings/d/e/2PACX-1vRV2F6GTuTQBR1_48Xf8-UrMM1Dhn89zETs4qp29dxkXNqG9tcSG9243Qn6LvrM1hPxhnakDkzh_rDj/pub?w=960&h=720)
+
+
+## Steps
+
 - [Create the ZeroTier private network](#create-zt-priv-network)
 - [Join the private ZeroTier network](#join-private-network)
 - [Join the public ZeroTier farmer network](#join-farmer-network)
