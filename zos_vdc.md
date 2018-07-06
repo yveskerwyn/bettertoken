@@ -159,7 +159,7 @@ zt_admin_network_member0.authorize()
 
 The last step can also be accomplished by passing the ZeroTier client as an argument to the join request:
 ```python
-j.tools.prefab.local.network.zerotier.network_join(network_id=zt_admin_network_id,)
+j.tools.prefab.local.network.zerotier.network_join(network_id=zt_admin_network_id, zerotier_client=zt_client)
 ```
 
 

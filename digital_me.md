@@ -6,6 +6,10 @@
 - [Start a local Digital Me Robot](#dm-robot)
 - [Access the Node-Robot of your ThreeFold node](#node-robot)
 - [Stream the Node-Robot output of your ThreeFold node](#stream)
+- [Reset Node Robot (if needed)](#reset-node-robot)
+- [Delete VMs using the Zero-OS client (if needed)](#delete-vms)
+- [Delete containers using the Zero-OS client (if needed)](#delete-containers)
+- [Hard reset your ThreeFold node (if needed)](#hard-reset)
 - [Create a ZeroTier client service](#create-client-service)
 - [Create the VM machine](#create-vm)
 - [Create a virtual Web app](#create-webapp)
@@ -52,21 +56,22 @@ In order to list all your available ZeroTier networks:
 zt_client.networks_list()
 ```
 
-Set the name of the ZeroTier network you want to use to connect to the public gateway:
-Create the network:
-```python
-zt_private_network_name = 'private_network'
-```
-
 If this ZeroTier network was already created before, get it using the network id:
 ```python
-zt_private_network_id = 'e4da7455b2dc3436'
+zt_private_network_id = 'e4da7455b248690c'
 zt_private_network = zt_client.network_get(network_id=zt_private_network_id)
+```
+
+Optionally, in case you want to start from scratch, and delete the previously created private network:
+```python
+zt_private_network_id = 'e4da7455b248690c'
+zt_client.network_delete(network_id=zt_private_network_id)
 ```
 
 If not created yet the network, create it:
 ```python
 auto_assign_range = '10.147.20.0/24'
+zt_private_network_name = 'private_network'
 zt_private_network = zt_client.network_create(public=False, name=zt_private_network_name, auto_assign=True, subnet=auto_assign_range)
 zt_private_network_id = zt_private_network.id
 ```
@@ -82,7 +87,14 @@ zt_private_network.config
 ## Join the private ZeroTier network
 
 ```python
-j.tools.prefab.local.network.zerotier.network_join(network_id=zt_private_network_id)
+j.tools.prefab.local.network.zerotier.network_join(network_id=zt_private_network_id, zerotier_client=zt_client)
+```
+
+Optionally, get the IP address assigned to you in this private ZeroTier network:
+```python
+zt_machine_addr = j.tools.prefab.local.network.zerotier.get_zerotier_machine_address()
+zt_private_network_member = zt_private_network.member_get(address=zt_machine_addr)
+zt_private_network_member_ip_addr = zt_private_network_member.get_private_ip()
 ```
 
 <a id="join-farmer-network"></a>
@@ -94,6 +106,15 @@ zt_public_farmer_network_id = 'c7c8172af1f387a6'
 j.tools.prefab.local.network.zerotier.network_join(network_id=zt_public_farmer_network_id)
 ```
 
+Optionally, if you have the rights, get more information about this network:
+```python
+zt_public_farmer_network = zt_client.network_get(network_id=zt_public_farmer_network_id)
+```
+
+In the browser you can check the same information, but again, only if you have the appropriate rights:
+https://my.zerotier.com/api/network/c7c8172af1f387a6
+
+
 <a id='dm-robot'></a>
 
 ## Start a local Digital Me Robot
@@ -104,11 +125,11 @@ Digital Me is actually a set of service templates for getting things done in the
 
 In order to use these Digital Me service templates you need a Zero-Robot, which can be seen as your Digital Me.
 
-So first step is to get a running instance of a Zero-Robot on your local machine, or any (virtual) machine you have admin access too.
+So first step is to get a running instance of a Zero-Robot on your local machine, or any (virtual) machine you have admin access to.
 
-@todo, also discuss the Docker option, and make sure demo can be done from Windows machine
+@todo, also discuss the Docker option, and make sure demo can be done from Windows machine.
 
-For this follow the steps as documented in https://github.com/yveskerwyn/jumpscale/blob/master/12-zero-robot.md
+Based on the steps as documented in [Getting started with Zero-Robot](https://github.com/yveskerwyn/jumpscale/blob/master/12-zero-robot.md) do the following.
 
 First make sure you have an up to date JumpScale installation, execute the following in the `core9`, `lib9` and `prefab9` directories:
 ```bash
@@ -185,7 +206,7 @@ dm_robot = j.clients.zrobot.robots[dm_robot_name]
 
 In order to check or update the attributes of the Zero-Robot configuration instance:
 ```python
-dm_robot_client = j.clients.zrobot.get(robot_name)
+dm_robot_client = j.clients.zrobot.get(dm_robot_name)
 dm_robot_client.config
 dm_robot_client.config.data_set(key='url', val='http://localhost:6600')
 ```
@@ -202,11 +223,21 @@ dm_robot_client = j.clients.zrobot.get(instance=dm_robot_name, data=dm_robot_cfg
 
 ## Access the Node-Robot of your ThreeFold node (optional)
 
+Go to https://capacity.threefoldtoken.com in order to get the IP address and port on which your Node Robot is listening.
+
+If this is the first time:
 ```python
 node_robot_name = 'my node robot'
 node_robot_cfg = dict(url='http://10.102.157.1:6600')
 node_robot_client = j.clients.zrobot.get(instance=node_robot_name, data=node_robot_cfg)
 node_robot = j.clients.zrobot.robots[node_robot_name]
+```
+
+Else:
+```python
+j.clients.zrobot.list()
+node_robot_name = 'my node robot'
+node_robot_client = j.clients.zrobot.get(instance=node_robot_name)
 ```
 
 <a id='stream'></a>
@@ -222,14 +253,15 @@ Name of the Zero-OS configuration instance:
 zos_instance_name = 'my node'
 ```
 
+If you already have config instance for your node, get the client and check the configuration:
+```python
+zos_client = j.clients.zos.get(instance=zos_instance_name, interactive=False)
+zos_client.config
+```
+
 Optionally, you might want to delete the existing instance with the same name:
 ```python
 j.clients.zos.delete(instance=zos_instance_name)
-```
-
-If you already have config instance for your node, get the client:
-```python
-zos_client = j.clients.zos.get(instance=zos_instance_name, interactive=False)
 ```
 
 If not, create a new config instance and client:
@@ -240,7 +272,7 @@ zos_cfg = {"host": tf_node_address, "port": 6379, "password_": tf_farmer_id}
 zos_client = j.clients.zos.get(instance=zos_instance_name, data=zos_cfg)
 ```
 
-Get the SAL interface and list the containers:
+Get the SAL interface of your ThreeFold node and list the containers, you should see the `zrobot` container:
 ```python
 zos_sal = j.clients.zos.sal.get_node(instance=zos_instance_name)
 zos_sal.containers.list()
@@ -251,10 +283,11 @@ To check the flist version that was used:
 zos_sal.client.info.version()
 ```
 
-Stream the Zero-Robot output - in another JumpScale interactive shell:
+And finally in another JumpScale interactive shell, stream the Zero-Robot output:
 ```python
 j.clients.zos.list()
 zos_instance_name = 'my node'
+#zos_client = j.clients.zos.get(instance=zos_instance_name)
 zos_sal = j.clients.zos.sal.get_node(instance=zos_instance_name)
 zrobot_container = zos_sal.containers.get(name='zrobot')
 
@@ -276,16 +309,77 @@ zrobot_container.start()
 You will now have to reactivate the output streams from your node robot.
 
 
+<a id='delete-vms'></a>
+
+## Delete VMs using the Zero-OS client (if needed)
+
+Normally you should do this through the Digital Me VM service, but in case you don't have the secrets anymore, you'll need to use the Zero-OS client.
+
+```python
+zos_client.kvm.list()
+uuid1 = 'b506607f-399f-443d-8a67-4ab204079ab4'
+uuid2 = 'fe3a4870-e252-441c-accd-2a5939fb9093'
+
+zos_client.kvm.destroy(uuid=uuid1)
+zos_client.kvm.destroy(uuid=uuid2)
+```
+
+<a id='delete-containers'></a>
+
+## Delete containers using the Zero-OS client (if needed)
+
+```python
+j.clients.zos.list()
+zos_instance_name = 'my node'
+zos_sal = j.clients.zos.sal.get_node(instance=zos_instance_name)
+zos_sal.containers.list()
+c1 = zos_sal.containers.get(name='gw_23640ca4-aaf8-4859-8a5e-a0f588854a6f')
+c2 = zos_sal.containers.get(name='zdb_zdb_local_sdb')
+c1.stop()
+c2.stop()
+```
+
+In the above I had to drop the `gw_` from the name of the GW container:
+```python
+c1 = zos_sal.containers.get(name='23640ca4-aaf8-4859-8a5e-a0f588854a6f')
+c1.stop()
+zos_sal.containers.list()
+```
+
+Also, after a while the deleted GW container got recreated by the robot...
+
+```python
+zrobot_container = zos_sal.containers.get(name='zrobot')
+zrobot_container.client.bash(script='rm -rf /opt/var/data/zrobot/zrobot_data/*').get()
+zrobot_container.stop()
+zrobot_container.start()
+```
+
+<a id='hard-reset-node'></a>
+
+## Hard reset your ThreeFold node (if needed)
+
+Wipe the disks:
+```bash
+dd if=/dev/zero of=/dev/sda bs=1M count=20
+```
+
+
 <a id="zt-client-service"></a>
 
 ## Create a ZeroTier client service
 
-First (if not used `--template-repo $zos_templates_repo` when starting the robot) add the zero-os/0-templates repository, since this where the ZeroTier client service template is implemented:
+Check the service templates available on your Digital Me robot:
+```python
+dm_robot.templates.uids
+```
+
+If you didn't specify (using the `--template-repo $zos_templates_repo` option when starting your local Zero-Robot) the zero-os/0-templates repository (where the ZeroTier client service template is implemented) add the repository:
 ```python
 dm_robot.templates.add_repo(url='https://github.com/zero-os/0-templates') 
 ```
 
-Alternatively, in case you just need to pull the latest changes from this template repository use the `checkout_repo` method:
+Alternatively, or in any case it is always a good idea to pull the latest changes from this template repository, using the `checkout_repo` method:
 ```python
 dm_robot.templates.checkout_repo(url='https://github.com/zero-os/0-templates', revision='master')
 ```
@@ -293,6 +387,11 @@ dm_robot.templates.checkout_repo(url='https://github.com/zero-os/0-templates', r
 Get the API token of your ZeroTier account:
 ```python
 zt_token =  zt_client.config.data['token_']
+```
+
+Check the existing services on your (Digital Me) local Zero-Robot:
+```python
+dm_robot.services.names
 ```
 
 Set the name of the ZeroTier client service:
@@ -307,8 +406,14 @@ dm_robot.services.get(name=dm_zt_client_service_name).delete()
 
 Create the ZeroTier client service:
 ```python
+ZOS_ZTCL_UID = 'github.com/zero-os/0-templates/zerotier_client/0.0.1'
 zt_data = {'token': zt_token}
-dm_zt_client_service = dm_robot.services.create(template_uid='github.com/zero-os/0-templates/zerotier_client/0.0.1', service_name=dm_zt_client_service_name, data=zt_data)
+dm_zt_client_service = dm_robot.services.create(template_uid=ZOS_ZTCL_UID, service_name=dm_zt_client_service_name, data=zt_data)
+```
+
+Next to creating the service on your local Zero-Robot, you will also notice that an additional ZeroTier configuration instance got created with the above name specified:
+```python
+j.clients.zerotier.list()
 ```
 
 
@@ -353,7 +458,7 @@ task.state
 task.eco
 ```
 
-Get the ZeroTier IP address of the VM:
+Get the ZeroTier IP address of the VM; give a little time:
 ```python
 r = dm_vm_service.schedule_action(action='info')
 vm_zt_ip_addr = r.result['zerotier']['ip']
@@ -439,48 +544,3 @@ Remove it again:
 dm_gw_service.schedule_action(action='remove_http_proxy', args={'proxy': proxy_cfg}).wait(die=True) 
 ```
 
-<a id='delete-vms'></a>
-
-## Delete VMs using the Zero-OS client
-
-Normally you should do this through the Digital Me VM service, but in case you don't have the secrets anymore, you'll need to use the Zero-OS client.
-
-```python
-zos_client.kvm.list()
-uuid1 = 'b506607f-399f-443d-8a67-4ab204079ab4'
-uuid2 = 'fe3a4870-e252-441c-accd-2a5939fb9093'
-
-zos_client.kvm.destroy(uuid=uuid1)
-zos_client.kvm.destroy(uuid=uuid2)
-```
-
-<a id='delete-containers'></a>
-
-## Delete containers using the Zero-OS client
-
-```python
-j.clients.zos.list()
-zos_instance_name = 'my node'
-zos_sal = j.clients.zos.sal.get_node(instance=zos_instance_name)
-zos_sal.containers.list()
-c1 = zos_sal.containers.get(name='gw_23640ca4-aaf8-4859-8a5e-a0f588854a6f')
-c2 = zos_sal.containers.get(name='zdb_zdb_local_sdb')
-c1.stop()
-c2.stop()
-```
-
-In the above I had to drop the `gw_` from the name of the GW container:
-```python
-c1 = zos_sal.containers.get(name='23640ca4-aaf8-4859-8a5e-a0f588854a6f')
-c1.stop()
-zos_sal.containers.list()
-```
-
-Also, after a while the deleted GW container got recreated by the robot...
-
-```python
-zrobot_container = zos_sal.containers.get(name='zrobot')
-zrobot_container.client.bash(script='rm -rf /opt/var/data/zrobot/zrobot_data/*').get()
-zrobot_container.stop()
-zrobot_container.start()
-```
