@@ -135,6 +135,7 @@ In order to use these Digital Me service templates you need a Zero-Robot, which 
 So first step is to get a running instance of a Zero-Robot on your local machine, or any (virtual) machine you have admin access to.
 
 @todo, also discuss the Docker option, and make sure demo can be done from Windows machine.
+@todo, also verify how to automate the installation from JumpScale, using prefab?
 
 Based on the steps as documented in [Getting started with Zero-Robot](https://github.com/yveskerwyn/jumpscale/blob/master/12-zero-robot.md) do the following.
 
@@ -372,7 +373,7 @@ dd if=/dev/zero of=/dev/sda bs=1M count=20
 ```
 
 
-<a id="zt-client-service"></a>
+<a id="create-client-service"></a>
 
 ## Create a ZeroTier client service
 
