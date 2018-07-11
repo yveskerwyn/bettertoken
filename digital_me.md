@@ -620,7 +620,7 @@ Remove it again:
 dm_gw_service.schedule_action(action='remove_http_proxy', args={'proxy': proxy_cfg}).wait(die=True) 
 ```
 
-See [issue #30](https://github.com/Jumpscale/digital_me/issues/30) about this last step.
+See [issue #37](https://github.com/Jumpscale/digital_me/issues/37) about this last step.
 
 
 <a id='blueprint'></a>
