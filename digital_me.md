@@ -22,6 +22,7 @@
 - [Create a virtual Web app](#create-webapp)
 - [Create a public gateway](#public-gw)
 - [Using a blueprint](#blueprint)
+- [Notes](#notes)
 
 ## Create the ZeroTier private network
 
@@ -263,6 +264,7 @@ zos_instance_name = 'my node'
 
 If you already have config instance for your node, get the client and check the configuration:
 ```python
+j.clients.zos.list()
 zos_client = j.clients.zos.get(instance=zos_instance_name, interactive=False)
 zos_client.config
 ```
@@ -278,6 +280,7 @@ tf_node_address = '10.102.157.1'
 tf_farmer_id = '...'
 zos_cfg = {"host": tf_node_address, "port": 6379, "password_": tf_farmer_id}
 zos_client = j.clients.zos.get(instance=zos_instance_name, data=zos_cfg)
+zos_client.ping()
 ```
 
 Get the SAL interface of your ThreeFold node and list the containers, you should see the `zrobot` container:
@@ -285,6 +288,13 @@ Get the SAL interface of your ThreeFold node and list the containers, you should
 zos_sal = j.clients.zos.sal.get_node(instance=zos_instance_name)
 zos_sal.containers.list()
 ```
+
+The above should at least list one container, which is the container of the Node Robot:
+```python
+[Container <zrobot>, Container <zdb_zdb_local_sdb>]
+```
+
+In the above example there is a second container, the container of Zero-DB, which gets created once you start working with virtual disks.
 
 To check the flist version that was used:
 ```python
@@ -367,9 +377,11 @@ zrobot_container.start()
 
 ## Hard reset your ThreeFold node (if needed)
 
-Wipe the disks:
+Wipe the disks by destroying the GPT disklabel
 ```bash
-dd if=/dev/zero of=/dev/sda bs=1M count=20
+parted -s /dev/sda mklabel msdos
+parted -s /dev/sdb mklabel msdos
+#dd if=/dev/zero of=/dev/sda bs=1M count=20
 ```
 
 
@@ -429,6 +441,11 @@ j.clients.zerotier.list()
 
 ## Create virtual machine
 
+First you might want to pull the latest changes from the Digital Me template repository, using the `checkout_repo` method:
+```python
+dm_robot.templates.checkout_repo(url='https://github.com/jumpscale/digital_me', revision='master')
+```
+
 Get the node ID of your node from https://capacity.threefoldtoken.com 
 
 https://capacity.threefoldtoken.com/?cru=0&mru=0&hru=0&sru=0&country=Belgium&farmer=yvesfarm
@@ -444,7 +461,7 @@ my_sshkey = j.clients.sshkey.get(instance=my_sshkey_name)
 Create a VM service based on the Digital Me service template for a VM:
 ```python
 node_id = '00e04c680575'
-vm_name = 'myfirstvm'
+vm_name = 'vm1'
 vm_data = {
     'nodeId': node_id,
     'memory': 1024,
@@ -460,30 +477,67 @@ vm_data = {
     'configs': [{'path': '/root/.ssh/authorized_keys', 'content': my_sshkey.pubkey, 'name': 'sshkey'}]
 }
 dm_vm_service = dm_robot.services.create(template_uid='github.com/jumpscale/digital_me/vm/0.0.1', service_name=vm_name, data=vm_data)
+```
 
+As a result of creating the service you will notice that new configuration instance got created for the node robot with the node ID as name:
+```python
+j.clients.zrobot.list()
+```
+
+Now schedule the execution of the `install` action, which will actually install the virtual machine on your node:
+```python
 task = dm_vm_service.schedule_action('install')
 task.state
 task.eco
 ```
 
+In order to check the result in the node robot, use the configuration instance that was created as a result of creating the VM service, not the one you might have created yourself as documented [above](#node-robot):
+```python
+node_robot = j.clients.zrobot.robots[node_id]
+node_robot.services.names
+```
+
+You will see two service, one for the virtual machine and one for the virtual disk:
+```python
+{'7d9acfb4-fc75-4328-bfa3-7d37ebee4634_test': robot://00e04c680575/github.com/zero-os/0-templates/vdisk/0.0.1?name=7d9acfb4-fc75-4328-bfa3-7d37ebee4634_test&guid=30643a60-92d2-48b1-afff-4facb602f06a,
+ '7d9acfb4-fc75-4328-bfa3-7d37ebee4634': robot://00e04c680575/github.com/zero-os/0-templates/vm/0.0.1?name=7d9acfb4-fc75-4328-bfa3-7d37ebee4634&guid=8e2ec3b9-0b1a-4e03-b04b-300c3293d37a}
+```
+
+Also check the Digital Me Zero-Robot data repo for all services:
+```python
+!ls /Users/yves/code/docs/yves/robotdata/zrobot_data/github.com/jumpscale/digital_me/vm
+```
+
+Optionally create a second virtual machine:
+```python
+vm_name = 'vm2'
+dm_vm_service2 = dm_robot.services.create(template_uid='github.com/jumpscale/digital_me/vm/0.0.1', service_name=vm_name, data=vm_data)
+dm_vm_service2.schedule_action('install').wait(die=True)
+```
+
+In case you created a second virtual machine, you can check again the result on the node robot:
+```python
+node_robot = j.clients.zrobot.robots[node_id]
+node_robot.services.names
+```
+
+> Make sure to execute both above lines, only executing the second will not fetch the updated list.
+
 Get the ZeroTier IP address of the VM; give a little time:
 ```python
-r = dm_vm_service.schedule_action(action='info')
+r = dm_vm_service.schedule_action(action='info').wait(die=True)
 vm_zt_ip_addr = r.result['zerotier']['ip']
+vm_zt_ip_addr
 ```
 
-In order to delete the VM:
+In order to delete the VM, first schedule the `uninstall` action and than delete the service, here for the second virtual machine:
 ```python
-dm_vm_service.schedule_action(action='delete')
-dm_vm_service.delete()
-```
-
-Also check the Robot data repo for all services:
-```bash
-ls /Users/yves/code/docs/yves/robotdata/zrobot_data/github.com/jumpscale/digital_me/vm
+dm_vm_service2.schedule_action(action='uninstall').wait(die=True)
+dm_vm_service2.delete()
 ```
 
 @TODO ask FR for adding the VMs to the node manager
+
 
 <a id="create-webapp"></a>
 
@@ -519,6 +573,12 @@ ssh_client.execute(cmd=start_webserver)
 
 https://github.com/Jumpscale/digital_me/tree/master/templates/gateway
 
+Again, if not done already earlier when creating the DM service for your deploying your virtual machine, you might want to pull the latest changes from the Digital Me template repository, using the `checkout_repo` method:
+```python
+dm_robot.templates.checkout_repo(url='https://github.com/jumpscale/digital_me', revision='master')
+```
+
+Create the DM service for creating a public gateway to your private network:
 ```python
 DM_GW_UID = 'github.com/jumpscale/digital_me/gateway/0.0.1'
 gw_hostname = 'mygw'
@@ -535,18 +595,24 @@ gw_data = {
     }],
 }
 
-dm_gw_service = dm_robot.services.find_or_create(template_uid=DM_GW_UID, service_name='dm_gw', data=gw_data)
-
-dm_gw_service.schedule_action('install').wait(die=True)
+dm_gw_service = dm_robot.services.create(template_uid=DM_GW_UID, service_name='dm_gw', data=gw_data)
 ```
 
-See [issue #29](https://github.com/Jumpscale/digital_me/issues/29) regarding this last step.
+Schedule the `install` action:
+```python
+#dm_gw_service.schedule_action('install').wait(die=True)
+task = dm_gw_service.schedule_action('install')
+task.state
+task.eco
+```
 
 Add proxy:
 ```python
 proxy_name = 'myproxy'
+vm_name = 'vm1' 
 proxy_cfg = {'name': proxy_name, 'host': vm_zt_ip_addr, 'types': ['http'], 'destinations': [{'vm': vm_name, 'port': 8000}]}
 dm_gw_service.schedule_action(action='add_http_proxy', args={'proxy': proxy_cfg}).wait(die=True) 
+_.state
 ```
 
 Remove it again:
@@ -562,3 +628,84 @@ See [issue #30](https://github.com/Jumpscale/digital_me/issues/30) about this la
 ## Using a blueprint
 
 @TODO
+
+
+<a id='notes'></a>
+
+## Notes
+
+If you delete all services via your Digital Me robot with the intent to "reset" your node, you will end up with 2 containers instead of on container still running on your node:
+```python
+In [2]: j.clients.zrobot.list()
+Out[2]:
+['gw1.robot.threefoldtoken.com:6600',
+ '00e04c680575',
+ 'local_dm_robot',
+ 'my node robot',
+ '10.102.157.1:6600']
+
+In [3]: j.clients.zos.list()
+Out[3]: ['my node']
+
+In [4]: cl = j.clients.zos.get('my node')
+
+In [5]: cl.container.list()
+Out[5]:
+{'1': {'cpu': 0,
+  'rss': 6254592,
+  'vms': 430481408,
+  'swap': 0,
+  'debug': '486',
+  'container': {'arguments': {'root': 'https://hub.gig.tech/gig-official-apps/zero-os-0-robot-autostart-latest.flist',
+    'mount': {'/var/cache/zrobot/config': '/opt/code/local/stdorg/config',
+     '/var/cache/zrobot/data': '/opt/var/data/zrobot/zrobot_data',
+     '/var/cache/zrobot/jsconfig': '/root/js9host/cfg',
+     '/var/cache/zrobot/ssh': '/root/.ssh',
+     '/var/run/redis.sock': '/tmp/redis.sock'},
+    'host_network': False,
+    'identity': '',
+    'nics': [{'type': 'default',
+      'id': '',
+      'hwaddr': '',
+      'config': {'dhcp': False, 'cidr': '', 'gateway': '', 'dns': None},
+      'monitor': False,
+      'state': 'configured'}],
+    'port': {'zt*:6600': 6600},
+    'privileged': False,
+    'hostname': '',
+    'storage': 'ardb://hub.gig.tech:16379',
+    'name': 'zrobot',
+    'tags': ['zrobot'],
+    'env': {'HOME': '/root', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8'},
+    'cgroups': [['devices', 'corex']]},
+   'root': '/mnt/containers/1',
+   'pid': 486}},
+ '2': {'cpu': 0,
+  'rss': 7237632,
+  'vms': 356945920,
+  'swap': 0,
+  'debug': '931',
+  'container': {'arguments': {'root': 'https://hub.gig.tech/gig-autobuilder/rivine-0-db-release-master.flist',
+    'mount': {'/mnt/zdbs/sdb': '/zerodb'},
+    'host_network': False,
+    'identity': '95d82f59a0:0:38fba321ca325d78ce9e4d69843b4aba98c13fba8dcb30e55c0e866094c9d60f78d0892dba97769eaab3b495e0793feabf44552bd580a8d29cc4c37cb69becd9:83291954ac4ef1323604baa7502edf64273c2176525d9d3936b4e39d6919d4b7872c90d7cc869fe180470d5cd230970a4f25d0f170774d5ea3a013152b4001c3',
+    'nics': [{'type': 'default',
+      'id': 'None',
+      'hwaddr': '',
+      'name': 'nat0',
+      'config': {'dhcp': False, 'cidr': '', 'gateway': '', 'dns': None},
+      'monitor': False,
+      'state': 'configured'}],
+    'port': {'zt*:9900': 9900},
+    'privileged': False,
+    'hostname': '',
+    'storage': 'ardb://hub.gig.tech:16379',
+    'name': 'zdb_zdb_local_sdb',
+    'tags': ['zdb_zdb_local_sdb'],
+    'env': {},
+    'cgroups': [['devices', 'corex']]},
+   'root': '/mnt/containers/2',
+   'pid': 931}}}
+```
+
+This second container, base on `rivine-0-db-release-master.flist` is the Zero-DB service, which gets created when creating a virtual disk, and is not deleted when deleting all virtual disks. That is by design. 
