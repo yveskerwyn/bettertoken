@@ -170,11 +170,18 @@ You should see something like:
 - key in sshagent: True
 ````
 
+Create **private** Git repository for your Zero-Robot data... 
+
 Copy the ssh/https addresses of the Git repositories in environment variables:
 ```bash
 data_repo="ssh://git@docs.greenitglobe.com:10022/yves/robotdata.git"
 dm_templates_repo="https://github.com/jumpscale/digital_me.git"
 zos_templates_repo="https://github.com/zero-os/0-templates"
+```
+
+You might need to grade the JinJa package:
+```bash
+pip3 install --upgrade Jinja2
 ```
 
 > In case you already cloned above template repositories, first make sure you have pull the latests changes.
@@ -595,32 +602,38 @@ gw_data = {
     }],
 }
 
-dm_gw_service = dm_robot.services.create(template_uid=DM_GW_UID, service_name='dm_gw', data=gw_data)
+dm_gw_service_name = 'dm_gw'
+dm_gw_service = dm_robot.services.create(template_uid=DM_GW_UID, service_name=dm_gw_service_name, data=gw_data)
 ```
 
 Schedule the `install` action:
 ```python
 #dm_gw_service.schedule_action('install').wait(die=True)
-task = dm_gw_service.schedule_action('install')
+task = dm_gw_service.schedule_action('install').wait(die=True)
 task.state
 task.eco
+```
+
+Get the public IP address of the public GW:
+```python
+task = dm_gw_service.schedule_action('info').wait(die=True)
+gw_public_ip = task.result['publicip'].split('/')[0]
 ```
 
 Add proxy:
 ```python
 proxy_name = 'myproxy'
 vm_name = 'vm1' 
-proxy_cfg = {'name': proxy_name, 'host': vm_zt_ip_addr, 'types': ['http'], 'destinations': [{'vm': vm_name, 'port': 8000}]}
-dm_gw_service.schedule_action(action='add_http_proxy', args={'proxy': proxy_cfg}).wait(die=True) 
-_.state
+
+proxy_cfg = {'name': proxy_name, 'host': gw_public_ip, 'types': ['http'], 'destinations': [{'vm': vm_name, 'port': 8000}]}
+task = dm_gw_service.schedule_action(action='add_http_proxy', args={'proxy': proxy_cfg}).wait(die=True) 
+task.state
 ```
 
-Remove it again:
+Optionally, in order to remove the reverse proxy schedule the `remove_http_proxy` action:
 ```python
 dm_gw_service.schedule_action(action='remove_http_proxy', args={'proxy': proxy_cfg}).wait(die=True) 
 ```
-
-See [issue #37](https://github.com/Jumpscale/digital_me/issues/37) about this last step.
 
 
 <a id='blueprint'></a>
