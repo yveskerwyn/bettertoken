@@ -55,6 +55,7 @@ j.clients.zerotier.delete(instance=zt_config_instance_name)
 In case you need to create a (new) JumpScale client for ZeroTier:
 ```python
 zt_token = '***'
+#zt_token =  zt_client.config.data['token_']
 zt_cfg = dict([('token_', zt_token)])
 zt_client = j.clients.zerotier.get(instance=zt_config_instance_name , data=zt_cfg)
 ```
@@ -193,6 +194,15 @@ zrobot server start --listen :6600 --template-repo $dm_templates_repo --template
 
 > In the above we didn't specify a config repo, in which case the config repo you already configured will be used
 
+In order to protect your Zero-Robot API endpoints with ItsYou.online you need to used the `--admin-organization` and/or ``--user-organization`` option:
+```bash
+IYO_USER_ORG="zos_training_org"
+IYO_ADMIN_ORG="zos_training_org"
+zrobot server start --listen :6600 --template-repo $dm_templates_repo --template-repo $zos_templates_repo --data-repo $data_repo --admin-organization $IYO_ADMIN_ORG --user-organization IYO_ADMIN_ORG
+```
+
+> See https://github.com/zero-os/0-robot/blob/master/docs/security.md for more information about securing your Zero-Robot
+
 Check the configured Zero-Robots:
 ```bash
 zrobot robot list
@@ -235,7 +245,7 @@ dm_robot_client = j.clients.zrobot.get(instance=dm_robot_name, data=dm_robot_cfg
 ```
 
 
-<a id='#node-robot'></a>
+<a id='node-robot'></a>
 
 ## Access the Node-Robot of your ThreeFold node (optional)
 
@@ -467,6 +477,7 @@ my_sshkey = j.clients.sshkey.get(instance=my_sshkey_name)
 
 Create a VM service based on the Digital Me service template for a VM:
 ```python
+DM_VM_UID = 'github.com/jumpscale/digital_me/vm/0.0.1'
 node_id = '00e04c680575'
 vm_name = 'vm1'
 vm_data = {
@@ -477,13 +488,14 @@ vm_data = {
         'size': 10,
         'mountPoint': '/mnt',
         'filesystem': 'btrfs',
-        'label': 'test',
+        'label': 'test'
     }],
     'zerotier': {'id': zt_private_network_id, 'ztClient': dm_zt_client_service_name},
     'image': 'ubuntu',
     'configs': [{'path': '/root/.ssh/authorized_keys', 'content': my_sshkey.pubkey, 'name': 'sshkey'}]
 }
-dm_vm_service = dm_robot.services.create(template_uid='github.com/jumpscale/digital_me/vm/0.0.1', service_name=vm_name, data=vm_data)
+
+dm_vm_service = dm_robot.services.create(template_uid=DM_VM_UID, service_name=vm_name, data=vm_data)
 ```
 
 As a result of creating the service you will notice that new configuration instance got created for the node robot with the node ID as name:
@@ -602,7 +614,7 @@ gw_data = {
     }],
 }
 
-dm_gw_service_name = 'dm_gw'
+dm_gw_service_name = gw_hostname
 dm_gw_service = dm_robot.services.create(template_uid=DM_GW_UID, service_name=dm_gw_service_name, data=gw_data)
 ```
 
@@ -642,10 +654,16 @@ dm_gw_service.schedule_action(action='remove_http_proxy', args={'proxy': proxy_c
 
 @TODO
 
+Chaining requests in Insomnia: https://support.insomnia.rest/article/43-chaining-requests
+
+
+
 
 <a id='notes'></a>
 
 ## Notes
+
+About secrets: https://github.com/zero-os/0-robot/blob/master/docs/security.md
 
 If you delete all services via your Digital Me robot with the intent to "reset" your node, you will end up with 2 containers instead of on container still running on your node:
 ```python
