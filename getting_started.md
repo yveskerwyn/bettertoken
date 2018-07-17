@@ -61,29 +61,29 @@ The result of your registration will be a JSON Web Token (JWT), which is your **
 
 On https://bootstrap.gig.tech click the **Assistant** button:
 
-![](images/bootstrap.png)
+![](images/bootstrap_home.png)
 
 In **step 1** of the Zero-OS **Boot Generator Assistant** page select Zero-OS branch `v1.4.1`:
 
-![](images/bootstrap1.png)
+![](images/bootstrap_branch.png)
 
 Next, in **step 2**, specify the ID of ZeroTier management address, the default one to use is `c7c8172af1f387a6`:
 
-![](images/bootstrap2.png)
+![](images/bootstrap_zerotier.png)
 
 In **step 3**, pass your `farmer_id={$farmer_id}` as a kernel parameter:
 
-![](images/bootstrap3.png)
+![](images/bootstrap_arguments.png)
 
 Optionally, in order to boot your ThreeFold node in development node, you can also add the `%20development`: `farmer_id={$farmer_id}%20development`
 
 In **step 4**, next to **EFI** you can see the EFI (UEFI) bootable image download URL for your ThreeFold node:
 
-![](images/bootstrap4.png)
+![](images/bootstrap_efi.png)
 
 You might need to scroll to the right in order to see the **EFI Kernel** download button:
 
-![](images/bootstrap5.png)
+![](images/bootstrap_download.png)
 
 Or just copy the download URL into your browser:
 
