@@ -61,11 +61,11 @@ The result of your registration will be a JSON Web Token (JWT), which is your **
 
 On https://bootstrap.gig.tech click the **Assistant** button:
 
-![](images/bootstrap1.png)
+![](images/bootstrap.png)
 
 In **step 1** of the Zero-OS **Boot Generator Assistant** page select Zero-OS branch `v1.4.1`:
 
-![](images/bootstrap.png)
+![](images/bootstrap1.png)
 
 Next, in **step 2**, specify the ID of ZeroTier management address, the default one to use is `c7c8172af1f387a6`:
 
