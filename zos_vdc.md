@@ -76,7 +76,7 @@ In case you need to create a (new) JumpScale client for ZeroTier:
 ```python
 zt_token = '***'
 zt_cfg = dict([('token_', zt_token)])
-zt_client = j.clients.zerotier.get(instance=zt_config_instance_name , data=zt_cfg)
+zt_client = j.clients.zerotier.get(instance=zt_config_instance_name, data=zt_cfg)
 ```
 
 In order to list all your available ZeroTier networks:
